@@ -30,7 +30,7 @@ print(books_rating.shape)
 # print("Дані збережено у файли books_data_1000.csv та books_ratings_filtered.csv")
 
 
-books_count = 250
+books_count = 1000
 
 # Вибираємо перші n книг з books_data
 books_data_df = books_data.head(books_count)
