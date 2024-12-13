@@ -1,3 +1,4 @@
+import pandas as pd
 import scipy.sparse as sp
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -150,8 +151,8 @@ def find_best_matching_books(user_description, book_texts, books_data, top_n=5):
     # similarities = calculate_vector_similarity(book_vectors, user_vector)
     similarities = cosine_similarity(user_vector, book_vectors)
     similar_indices = similarities.argsort()[0][top_n:][::-1]
-    print(similarities)
-    print(similar_indices)
+    # print(similarities)
+    # print(similar_indices)
     # book_texts['similarity'] = similarities
     # # df_grouped = book_texts_test.groupby('Title', as_index=False).agg({'similarity': 'sum'})
     # # 1. Групуємо за назвою і вибираємо максимальне значення similarity
@@ -197,11 +198,13 @@ def find_best_matching_books(user_description, book_texts, books_data, top_n=5):
     # print(top_books)
     # return [{"id": book['id'], "title": book["title"], "score": book["score"]} for book in top_books.values()]
 
+    print("Found books len:", len(similar_indices))
+
     top_books = {}
 
     for idx in similar_indices:
         # Якщо індекс знаходиться в межах books_data
-        print(idx)
+        # print(idx)
         if idx < len(book_texts):
             # book_id = int(merged_data.iloc[idx]['id'])
             book_title = book_texts.iloc[idx]['Title']
@@ -211,10 +214,10 @@ def find_best_matching_books(user_description, book_texts, books_data, top_n=5):
             book_id = int(books_data[books_data['Title'] == book_title].iloc[0]['book_id'])
             score = similarities[0, idx]
 
-            if score <= 0.0:
+            if score <= 0.2:
                 continue
 
-            print(score)
+            # print(score)
 
         # Перевірка валідності id
         if book_id <= 0:
@@ -239,8 +242,10 @@ def find_best_matching_books(user_description, book_texts, books_data, top_n=5):
 
 
 #     return top_books_by_emotion
-def find_books_by_emotion(emotion, books_rating, top_n=5):
+def find_books_by_emotion(emotion, books_data, books_rating, top_n=5):
     sentiment_scores = []
+
+    review_text_count_processed = 0
 
     for idx, row in books_rating.iterrows():
         review_text = row['review/text']
@@ -257,17 +262,59 @@ def find_books_by_emotion(emotion, books_rating, top_n=5):
         # if emotion ==
         # Пошук книг за позитивними, негативними чи нейтральними емоціями
         if emotion == emotion_text[0]['label']:
-            sentiment_scores.append((row['Title'], emotion_text[0]['score']))
+            book_title = row['Title']
+            book_id = books_data[books_data['Title'] == book_title].iloc[0]['book_id']
+            sentiment_scores.append({"id": int(book_id), "title": book_title, "score": float(emotion_text[0]['score'])})
 
-    # Сортуємо за оцінкою емоції і повертаємо топ N книг
-    sentiment_scores = sorted(sentiment_scores, key=lambda x: x[1], reverse=True)
+        review_text_count_processed += 1
+        if review_text_count_processed % 10 == 0:
+            print("Processed review text:", review_text_count_processed)
 
-    # Виводимо результат
-    top_books_by_emotion = sentiment_scores[:top_n]
+    # # Сортуємо за оцінкою емоції і повертаємо топ N книг
+    # sentiment_scores = sorted(sentiment_scores, key=lambda x: x['score'], reverse=True)
+    #
+    # # Виводимо результат
+    # top_books_by_emotion = sentiment_scores[:top_n]
+    #
+    # result = [{"id":book["id"], "title": book["title"], "score": book["score"]} for book in top_books_by_emotion]
+    #
+    # return result
 
-    result = [{"title": title, "score": score} for title, score in top_books_by_emotion]
+    # Перетворюємо список в DataFrame для подальшої обробки
+    sentiment_df = pd.DataFrame(sentiment_scores)
 
-    return result
+    # Групуємо за 'title' та вибираємо максимальний 'score' для кожної книги
+    max_scores_df = sentiment_df.loc[sentiment_df.groupby('title')['score'].idxmax()]
+    print(max_scores_df)
+    # Сортуємо за оцінкою (score) і беремо top N
+    top_books_by_emotion = max_scores_df.nlargest(top_n, 'score')
+
+    print(top_books_by_emotion)
+
+    # Перетворюємо в список для повернення результату
+    return [{"id": book["id"], "title": book["title"], "score": book["score"]} for _, book in
+                  top_books_by_emotion.iterrows()]
+
+
+def find_books_by_emotion_and_user_dec(emotion, user_description, book_texts, books_data, books_rating, top_n=5):
+
+    print('Book texts len:', len(book_texts))
+
+    matching_books = find_best_matching_books(user_description, book_texts, books_data, top_n)
+
+    print(matching_books)
+
+    books_titles = [book["title"] for book in matching_books]
+
+    filtered_books_rating = books_rating[books_rating['Title'].isin(books_titles)]
+
+    print('Filtered books rating:', len(filtered_books_rating))
+
+    emotion_books = find_books_by_emotion(emotion, books_data, filtered_books_rating, top_n)
+
+    return emotion_books
+
+    # emotion_book_texts = book_texts[book_texts['Title'].isin(books_titles)]
 
 # Ось опис книги, який ми хочемо використати для пошуку
 # user_description = """

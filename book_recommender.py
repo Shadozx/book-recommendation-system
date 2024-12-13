@@ -79,9 +79,31 @@ def find_books_by_user_emotion():
         return jsonify({"error": "Invalid emotion. Valid emotions are: " + ", ".join(valid_emotions)}), 400
 
     # Викликаємо функцію для пошуку книг
-    matching_books = find_books_by_emotion(emotion, books_rating, top_n)
+    matching_books = find_books_by_emotion(emotion, books_data, books_rating, top_n)
 
     # Повертаємо результат у вигляді JSON
+    return jsonify(matching_books)
+
+@app.route('/books/emotion/desc', methods=['POST'])
+def find_books_by_user_emotion_and_description():
+    # Отримуємо JSON з тіла запиту
+    data = request.get_json()
+
+    user_description = data.get('user_description')  # Отримуємо опис користувача
+    # Отримуємо emotion та top_n
+    emotion = data.get('emotion')
+    top_n = data.get('top_n', 5)  # Якщо top_n не вказано, за замовчуванням буде 5
+
+    # Перевіряємо, чи є необхідні дані
+    if not user_description:
+        return jsonify({'error': 'user_description is required'}), 400
+
+    # Перевірка, чи emotion є в списку дозволених емоцій
+    if emotion not in valid_emotions:
+        return jsonify({"error": "Invalid emotion. Valid emotions are: " + ", ".join(valid_emotions)}), 400
+
+    matching_books = find_books_by_emotion_and_user_dec(emotion, user_description, book_texts, books_data, books_rating, top_n)
+
     return jsonify(matching_books)
 
 @app.route('/books/all', methods=['GET'])
