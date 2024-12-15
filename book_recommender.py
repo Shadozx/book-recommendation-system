@@ -19,7 +19,13 @@ from util.recommendation_algorithms import *
 
 
 merged_data, books_data, books_rating = load_data('books_data_100_test.csv', 'books_rating_books_100_test.csv')
+users = books_rating[['User_id', 'profileName']].drop_duplicates()
+# Порахувати кількість відгуків для кожного користувача
+review_counts = books_rating.groupby('User_id').size().reset_index(name='review_count')
 
+# Об'єднати з таблицею користувачів
+users = users.merge(review_counts, on='User_id', how='left')
+users = users.sort_values(by='review_count', ascending=False)
 
 recommender = create_recommender(books_rating)
 
@@ -28,7 +34,7 @@ print(len(merged_data))
 print(merged_data[['Title', 'final_combined']].head())
 
 book_texts = merged_data[['Title', 'final_combined']]
-
+emotion_books_rating = create_emotion_analysis_df(books_rating)
 
 # TOKEN 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
 # email: norehis608@ikowat.com
@@ -47,10 +53,6 @@ def find_books_by_user_description():
 
     # Викликаємо метод для пошуку відповідних книг
     matching_books = find_best_matching_books(user_description, book_texts, books_data, top_n)
-
-    # for i, book in enumerate(matching_books, 1):
-    #     print(f"Rank {i}: {book['Title']} (Similarity: {book['Similarity Score']:.2f})")
-
 
     # Повертаємо результат у вигляді JSON
     print(matching_books)
@@ -79,7 +81,7 @@ def find_books_by_user_emotion():
         return jsonify({"error": "Invalid emotion. Valid emotions are: " + ", ".join(valid_emotions)}), 400
 
     # Викликаємо функцію для пошуку книг
-    matching_books = find_books_by_emotion(emotion, books_data, books_rating, top_n)
+    matching_books = find_books_by_emotion(emotion, books_data, emotion_books_rating, top_n)
 
     # Повертаємо результат у вигляді JSON
     return jsonify(matching_books)
@@ -102,7 +104,7 @@ def find_books_by_user_emotion_and_description():
     if emotion not in valid_emotions:
         return jsonify({"error": "Invalid emotion. Valid emotions are: " + ", ".join(valid_emotions)}), 400
 
-    matching_books = find_books_by_emotion_and_user_dec(emotion, user_description, book_texts, books_data, books_rating, top_n)
+    matching_books = find_books_by_emotion_and_user_dec(emotion, user_description, book_texts, books_data, emotion_books_rating, top_n)
 
     return jsonify(matching_books)
 
@@ -114,12 +116,6 @@ def get_all_books():
     # Отримуємо всі книги з books_data
     for _, row in books_data.iterrows():
 
-        # book_info = {
-        #     'title': book_title == 'nan' ? '' : book_title,
-        #     'description': row['description'],
-        #     'authors': row['authors'] == ,
-        #     'image': row['image'] == 'nan' ? '' : row['image'],  # Якщо є зображення, використовуємо його
-        # }
 
         book_info = {
             'id': row['book_id'],
@@ -127,16 +123,9 @@ def get_all_books():
             'description': row['description'] if pd.notna(row['description']) else '',  # Якщо 'description' є nan, заміняємо на порожній рядок
             'authors': str(row['authors']).strip('[\']') if pd.notna(row['authors']) else '',  # Якщо 'authors' є nan, заміняємо на порожній рядок
             'image': row['image'] if pd.notna(row['image']) else '',  # Якщо 'image' є nan, заміняємо на порожній рядок
-            # 'isbn': row['isbn'] if pd.notna(row['isbn']) else '',  # Якщо 'isbn' є nan, заміняємо на порожній рядок
-            # 'language': row['language'] if pd.notna(row['language']) else '',  # Якщо 'language' є nan, заміняємо на порожній рядок
-            # 'publisher': row['publisher'] if pd.notna(row['publisher']) else '',  # Якщо 'publisher' є nan, заміняємо на порожній рядок
-            # 'publication_date': row['publication_date'] if pd.notna(row['publication_date']) else '',  # Якщо 'publication_date' є nan, заміняємо на порожній рядок
         }
 
         books_list.append(book_info)
-
-        if row['Title'] == 'Nation Dance: Religion, Identity and Cultural Difference in the Caribbean':
-            print(book_info)
 
     # print(books_list)
     return jsonify(books_list)
@@ -149,7 +138,6 @@ def get_book_by_id(id):
     if book_info.empty:
         return jsonify({"error": "Book not found"}), 404
 
-    # Формуємо відповідь
     book = {
         'id': int(book_info['book_id']),
         'title': book_info['Title'] if pd.notna(book_info['Title']) else '',
@@ -232,6 +220,16 @@ def get_book_recommendations():
 
     return jsonify(books)
 
+@app.route('/users', methods=['GET'])
+def get_users():
+    filtered_users_list = users.head(20)
+
+    # Формуємо список словників для відповіді
+    users_list = []
+    for _, user in filtered_users_list.iterrows():
+        users_list.append({'id': user['User_id'], 'name': user['profileName']})
+
+    return jsonify(users_list)
 
 @app.route('/welcome')
 def welcome():

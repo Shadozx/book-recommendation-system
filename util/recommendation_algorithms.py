@@ -242,34 +242,31 @@ def find_best_matching_books(user_description, book_texts, books_data, top_n=5):
 
 
 #     return top_books_by_emotion
-def find_books_by_emotion(emotion, books_data, books_rating, top_n=5):
+def find_books_by_emotion(emotion, books_data, emotion_books_rating, top_n=5):
     sentiment_scores = []
 
     review_text_count_processed = 0
 
-    for idx, row in books_rating.iterrows():
-        review_text = row['review/text']
+    for idx, row in emotion_books_rating.iterrows():
+        review_emotion = row['emotion']
+        review_emotion_score = row['emotion_score']
 
-        review_text = review_text[:512]
-        emotion_text = analyze_sentiment(review_text)
         # print(emotion_text)
         # [{'label': 'desire', 'score': 0.3667565882205963}]
-
-        if emotion_text is None:
-            continue
 
 
         # if emotion ==
         # Пошук книг за позитивними, негативними чи нейтральними емоціями
-        if emotion == emotion_text[0]['label']:
+        if emotion == review_emotion:
             book_title = row['Title']
             book_id = books_data[books_data['Title'] == book_title].iloc[0]['book_id']
-            sentiment_scores.append({"id": int(book_id), "title": book_title, "score": float(emotion_text[0]['score'])})
+            sentiment_scores.append({"id": int(book_id), "title": book_title, "score": float(review_emotion_score)})
 
         review_text_count_processed += 1
         if review_text_count_processed % 10 == 0:
             print("Processed review text:", review_text_count_processed)
 
+    print(sentiment_scores)
     # # Сортуємо за оцінкою емоції і повертаємо топ N книг
     # sentiment_scores = sorted(sentiment_scores, key=lambda x: x['score'], reverse=True)
     #
@@ -279,6 +276,12 @@ def find_books_by_emotion(emotion, books_data, books_rating, top_n=5):
     # result = [{"id":book["id"], "title": book["title"], "score": book["score"]} for book in top_books_by_emotion]
     #
     # return result
+
+    # Перевірка, чи є в списку sentiment_scores якісь результати
+    if not sentiment_scores:
+        # Якщо список порожній, повертаємо порожній список або відповідь
+        print(f"No books found for emotion: {emotion}")
+        return []
 
     # Перетворюємо список в DataFrame для подальшої обробки
     sentiment_df = pd.DataFrame(sentiment_scores)
@@ -296,7 +299,7 @@ def find_books_by_emotion(emotion, books_data, books_rating, top_n=5):
                   top_books_by_emotion.iterrows()]
 
 
-def find_books_by_emotion_and_user_dec(emotion, user_description, book_texts, books_data, books_rating, top_n=5):
+def find_books_by_emotion_and_user_dec(emotion, user_description, book_texts, books_data, emotion_books_rating, top_n=5):
 
     print('Book texts len:', len(book_texts))
 
@@ -306,7 +309,7 @@ def find_books_by_emotion_and_user_dec(emotion, user_description, book_texts, bo
 
     books_titles = [book["title"] for book in matching_books]
 
-    filtered_books_rating = books_rating[books_rating['Title'].isin(books_titles)]
+    filtered_books_rating = emotion_books_rating[emotion_books_rating['Title'].isin(books_titles)]
 
     print('Filtered books rating:', len(filtered_books_rating))
 

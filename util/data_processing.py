@@ -1,6 +1,6 @@
 # app/data_processing.py
 import pandas as pd
-from sklearn.metrics.pairwise import cosine_similarity
+# from sklearn.metrics.pairwise import cosine_similarity
 
 def load_data(books_data_name, books_rating_name):
     datasets_path = './datasets'
@@ -12,10 +12,14 @@ def load_data(books_data_name, books_rating_name):
     books_rating = pd.read_csv(test_path + books_rating_name)
     print('books_rating was downloaded')
 
+    books_data = books_data.iloc[::-1].reset_index(drop=True)
+
     books_data['description'] = books_data['description'].fillna('')
     books_rating['review/text'] = books_rating['review/text'].fillna('')
     books_rating['review/summary'] = books_rating['review/summary'].fillna('')
 
+    books_data['authors'] = books_data['authors'].fillna('')
+    books_data['authors'] = books_data['authors'].apply(lambda a: a.strip('[\']'))
     books_data['combined_text'] = books_data['Title'] + ' ' + books_data['description']
     books_rating['combined_reviews'] = books_rating['review/summary'] + ' ' + books_rating['review/text']
 
@@ -31,7 +35,6 @@ def load_data(books_data_name, books_rating_name):
     merged_data['final_combined'] = merged_data['final_combined'].fillna('')
 
     return merged_data, books_data, books_rating
-
 
 # datasets_path = './datasets'
 # book_reviews_path = datasets_path + '/book_reviews'
